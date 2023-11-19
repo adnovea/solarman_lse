@@ -28,6 +28,20 @@ Sorry, HACKS is not supported.
 ## Integration
 Solarman LSE works well this the nice [Sunsynk-Power-Flow-Card](https://github.com/slipx06/sunsynk-power-flow-card)
 
+![image](https://github.com/adnovea/solarman_lse/assets/44359861/cda53a87-2980-4052-8af3-d75f6e295190)
+
+You can also create commands for controlling (*be careful when writing settings because this can damage your inverter*):
+- Time of use on/off (*aka Scheduling*)
+- Priority Load or Battery
+- Battery Grid Charge enabling
+- Battery Grid Charge per time slots
+- Battery SOC minimum per time slots
+- or write automation scripts
+- etc.
+  
+![image](https://github.com/adnovea/solarman_lse/assets/44359861/af23400b-20b8-438c-b1fa-730f2c6878bb)
+
+
 ## DEYE Sun 5K
 For the Deye Sun 5K inverter owners, here is below my configuration :
 - Install the Solarman LSE Add-on
