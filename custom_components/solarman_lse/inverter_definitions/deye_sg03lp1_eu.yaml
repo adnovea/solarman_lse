@@ -3,10 +3,10 @@
 #
 # Modified by AdNovea on june 2023
 #
-# Each request can get a maximum of 125 registers as per modbus protocol (start and end included), 
-# so we need to split up the list of used registers into multiple requests of 125 regs max each.
+# Each request can get a maximum of 123 registers as per modbus protocol (start and end included), 
+# so we need to split up the list of used registers into multiple requests of 123 regs max each.
 #
-# Definition based on "deye_hybrid.yaml" for 242 registers
+# Definition based on "deye_hybrid.yaml" :
 #   - Disable Lookup tables
 #   - Remove Battery Status
 #   - Add Priority Mode
