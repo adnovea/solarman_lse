@@ -1,4 +1,4 @@
-# Solarman integration for LSE Stick Logger
+# Solarman integration for Ethernet LSE Stick Logger
 Home Assistant component for interacting with Solarman LSE (_Ethernet type_) Stick loggers. 
 
 > [!NOTE]
@@ -30,15 +30,17 @@ Solarman LSE works well this the nice [Sunsynk-Power-Flow-Card](https://github.c
 
 ![image](https://github.com/adnovea/solarman_lse/assets/44359861/cda53a87-2980-4052-8af3-d75f6e295190)
 
-You can also create commands for controlling (*be careful when writing settings because this can damage your inverter*):
+You can create your own Card with commands for controlling (*be careful when writing settings because this can damage your inverter*):
 - Time of use on/off (*aka Scheduling*)
 - Priority Load or Battery
-- Battery Grid Charge enabling
+- Battery Grid Charge enabling (*should be enabled to allow grid charge by time slot*)
 - Battery Grid Charge per time slots
 - Battery SOC minimum per time slots
 - or write automation scripts
 - etc.
-  
+
+*Here is an example:*
+
 ![image](https://github.com/adnovea/solarman_lse/assets/44359861/af23400b-20b8-438c-b1fa-730f2c6878bb)
 
 
@@ -50,5 +52,7 @@ For the Deye Sun 5K inverter owners, here is below my configuration :
 - Create a Card with the content of *Power-Flow-Card.yaml*.
 
 ## Troubleshooting
-- There is no add-on logo but the default icon.
+- **There is no add-on logo** but the default icon (sorry).
+- **Some sensors (or all sensors) show unavailable**. In order to avoid erratic data, I setup some INVALIDATE min/max in the Deye inverter definition file. For example, the Total Solar Production cannot be 0 ! BUT when you start for the 1st time or after a inverter reset, the value may be zero and invalidate all or some sensors. If you have problems, comment all the Invalidate field (and min/max value) and full restart H.A.
+- **Sensor display numeric values instead of state**. I have chosen to "interprete" the state within the Cards rather than using the LOOKUP feature in the inverter definition file. It's up to you to re-enable it or create LOOKUP if you need.
 
