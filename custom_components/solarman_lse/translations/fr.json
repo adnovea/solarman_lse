@@ -1,0 +1,25 @@
+{
+  "config": {
+    "abort": {
+      "already_configured": "Appareil déjà configuré"
+    },
+    "error": {
+      "cannot_connect": "Erreur de connexion",
+      "invalid_host": "Nom ou adresse IP incorrecte",
+      "unknown": "Erreur inconnue"
+    },
+    "step": {
+      "user": {
+        "title": "Configuration de la connexion Onduleur ",
+        "data": {
+          "name": "Ce nom est le préfixe de tous les paramètres (à choisir)",
+          "inverter_host": "Hôte (IP ou nom d'hôte)",
+          "inverter_serial": "Numéro du module série (à récupérer dans l'interface web)",
+          "inverter_port": "Port (par défaut 8899)",
+          "mb_slaveid": "ID Modbus esclave (par défaut 1)",
+          "lookup_file": "Fichier yaml contenant la définition des paramètres"
+        }
+      }
+    }
+  }
+}
