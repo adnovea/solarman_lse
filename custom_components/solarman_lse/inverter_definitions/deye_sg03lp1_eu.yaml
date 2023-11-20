@@ -1,0 +1,946 @@
+#----------------------------------------------------------------------
+# List of Registers for inverter DEYE Sun 5K SG03LP1-EU 
+#
+# Modified by AdNovea on june 2023
+#
+# Each request can get a maximum of 125 registers as per modbus protocol (start and end included), 
+# so we need to split up the list of used registers into multiple requests of 125 regs max each.
+#
+# Definition based on "deye_hybrid.yaml" for 242 registers
+#   - Disable Lookup tables
+#   - Remove Battery Status
+#   - Add Priority Mode
+#   - Add Load frequency
+#   - Add Battery Alert
+#   - Add Time_Of_Use table registers
+#   - Add System time
+#   - Split Work Mode in Work Mode + Energy selling
+#   - Add cheking against false readings
+#     ==> Search 'Invalidate' and set min/max value according to your actual configuration 
+#
+# Tested with inverters:
+#   - DEYE sun 5K SG03LP
+# Could work with inverters:
+#   - Turbo Energy
+#   - SunSynk
+#
+# ***** IMPORTANT *****
+# Some ranges to invalidate incorrecte reading have been set for my configuration.
+# PLEASE UPDATE WITH YOUR CONFIGURATION
+# *********************
+#----------------------------------------------------------------------
+
+
+
+
+#----------------------------------------------------------------------
+# 3 Request's groups (Read Holding Registers: 0x03) - each group < 123 registers
+#----------------------------------------------------------------------
+requests:
+
+# Read 110 registers [3-112]
+  - start: 0x0003
+    end: 0x0070
+    mb_functioncode: 0x03
+    
+# Read 99 registers [150-248]
+  - start: 0x0096  
+    end: 0x00F8
+    mb_functioncode: 0x03
+    
+# Read 75 registers [249-323] (use 31 regs [249-279] + 2 regs for Batt. alerts [322-323])
+  - start: 0x00F9
+    end: 0x0143
+    mb_functioncode: 0x03
+
+
+#----------------------------------------------------------------------
+# Parameters by Groups SOLAR, BATTERY, GRID, UPLOAD, INVERTER, ALERT
+#----------------------------------------------------------------------
+parameters:
+
+# SOLAR
+#----------------------------------------------------------------------
+ - group: solar 
+   items: 
+   
+    - name: "PV1 Power"
+      class: "power"
+      state_class: "measurement"
+      uom: "W"
+      scale: 1
+      rule: 1
+      registers: [0x00BA]
+      icon: 'mdi:solar-power'
+      validation:
+        max: 2460
+        invalidate_all:
+
+    - name: "PV2 Power"
+      class: "power"
+      state_class: "measurement"
+      uom: "W"
+      scale: 1
+      rule: 1
+      registers: [0x00BB]
+      icon: 'mdi:solar-power'
+      validation:
+        max: 2460
+        invalidate_all:
+
+    - name: "PV1 Voltage"
+      class: "voltage"
+      state_class: "measurement"
+      uom: "V"
+      scale: 0.1
+      rule: 1
+      registers: [0x006D]
+      icon: 'mdi:solar-power'
+
+    - name: "PV2 Voltage"
+      class: "voltage"
+      state_class: "measurement"
+      uom: "V"
+      scale: 0.1
+      rule: 1
+      registers: [0x006F]
+      icon: 'mdi:solar-power'
+
+    - name: "PV1 Current"
+      class: "current"
+      uom: "A"
+      scale: 0.1
+      rule: 1
+      registers: [0x006E]
+      icon: 'mdi:solar-power'
+
+    - name: "PV2 Current"
+      class: "current"
+      state_class: "measurement"
+      uom: "A"
+      scale: 0.1
+      rule: 1
+      registers: [0x0070]
+      icon: 'mdi:solar-power'
+
+    - name: "Daily Production"
+      class: "energy"
+      state_class: "measurement"
+      uom: "kWh"
+      scale: 0.1
+      rule: 1
+      registers: [0x006C]
+      icon: 'mdi:solar-power'
+
+    - name: "Total Production"
+      class: "energy"
+      state_class: "total_increasing"
+      uom: "kWh"
+      scale: 0.1
+      rule: 3
+      registers: [0x0060,0x0061]
+      icon: 'mdi:solar-power'
+      validation:
+        min: 0.1 
+        invalidate_all:
+        
+    - name: "Micro-inverter Power"
+      class: "power"
+      state_class: "measurement"
+      uom: "W"
+      scale: 1
+      rule: 1
+      registers: [0x00A6]
+      icon: 'mdi:solar-power'
+
+    - name: "Priority Mode"
+      class: ""
+      state_class: ""
+      uom: ""
+      scale: 1
+      rule: 1
+      registers: [0x00F3]
+      icon: 'mdi:solar-power'
+      validation:
+        min: 0
+        max: 1
+        invalidate_all:
+#      lookup: 
+#      -  key: 0
+#         value: "Battery first"
+#      -  key: 1
+#         value: "Load first"
+
+
+# BATTERY
+#----------------------------------------------------------------------
+ - group: Battery 
+   items: 
+   
+    - name: "Daily Battery Charge"
+      class: "energy"
+      state_class: "measurement"
+      uom: "kWh"
+      scale: 0.1
+      rule: 1
+      registers: [0x0046]
+      icon: 'mdi:battery-plus'
+
+    - name: "Daily Battery Discharge"
+      class: "energy"
+      state_class: "measurement"
+      uom: "kWh"
+      scale: 0.1
+      rule: 1
+      registers: [0x0047]
+      icon: 'mdi:battery-minus'
+
+    - name: "Total Battery Charge"
+      class: "energy"
+      state_class: "total_increasing"
+      uom: "kWh"
+      scale: 0.1
+      rule: 3
+      registers: [0x0048,0x0049]
+      icon: 'mdi:battery-plus'
+      validation:
+        min: 0.1
+        invalidate_all:
+
+    - name: "Total Battery Discharge"
+      class: "energy"
+      state_class: "total_increasing"
+      uom: "kWh"
+      scale: 0.1
+      rule: 3
+      registers: [0x004A,0x004B]
+      icon: 'mdi:battery-minus'
+      validation:
+        min: 0.1
+        invalidate_all:
+
+    - name: "Battery Power"
+      class: "power"
+      state_class: "measurement"
+      uom: "W"
+      scale: 1
+      rule: 2
+      registers: [0x00BE]
+      icon: 'mdi:battery'
+      validation:
+        max: 2000
+        invalidate_all:
+
+    - name: "Battery Voltage"
+      class: "voltage"
+      state_class: "measurement"
+      uom: "V"
+      scale: 0.01
+      rule: 1
+      registers: [0x00B7]
+      icon: 'mdi:battery'
+
+    - name: "Battery SOC"
+      class: "battery"
+      state_class: "measurement"
+      uom: "%"
+      scale: 1
+      rule: 1
+      registers: [0x00B8]
+      icon: 'mdi:battery-high'
+      validation:
+#        min: 1
+        max: 100
+        invalidate_all:
+
+    - name: "Battery Current"
+      class: "current"
+      state_class: "measurement"
+      uom: "A"
+      scale: 0.01
+      rule: 2
+      registers: [0x00BF]
+      icon: 'mdi:battery'
+
+    - name: "Battery Capacity"
+      class: "current"
+      state_class: "measurement"
+      uom: "Ah"
+      scale: 1
+      rule: 1
+      registers: [0x00CC]
+      icon: 'mdi:battery'
+      validation:
+        min: 74
+        max: 74
+        invalidate_all:
+
+    - name: "Battery Shutdown"
+      class: "battery"
+      state_class: "measurement"
+      uom: "%"
+      scale: 1
+      rule: 1
+      registers: [0x00D9]
+      icon: 'mdi:battery-off-outline'
+
+    - name: "Battery Temperature"
+      class: "temperature"
+      state_class: "measurement"
+      uom: "°C"
+      scale: 0.1
+      rule: 1
+      offset: 1000      
+      registers: [0x00B6]
+      icon: 'mdi:battery'
+      validation:
+        min: 5
+        invalidate_all:
+
+    - name: "Battery Gen charge"
+      class: ""
+      state_class: ""
+      uom: ""
+      scale: 1
+      rule: 1
+      registers: [0x00E7]
+      isstr: true
+      icon: 'mdi:battery-arrow-down-outline'
+
+    - name: "Battery Grid charge"
+      class: ""
+      state_class: ""
+      uom: ""
+      scale: 1
+      rule: 1
+      registers: [0x00E8]
+      isstr: true
+      icon: 'mdi:battery-arrow-down-outline'
+
+
+# GRID
+#----------------------------------------------------------------------
+ - group: Grid
+   items: 
+   
+    - name: "Total Grid Power"
+      class: "power"
+      state_class: "measurement"
+      uom: "W"
+      scale: 1
+      rule: 2
+      registers: [0x00A9]
+      icon: 'mdi:transmission-tower'
+      validation:
+        min: 1
+        invalidate_all:
+
+    - name: "Grid Voltage L1"
+      class: "voltage"
+      state_class: "measurement"
+      uom: "V"
+      scale: 0.1
+      rule: 1
+      registers: [0x0096]
+      icon: 'mdi:transmission-tower'
+
+    - name: "Grid Voltage L2"
+      class: "voltage"
+      state_class: "measurement"
+      uom: "V"
+      scale: 0.1
+      rule: 1
+      registers: [0x0097]
+      icon: 'mdi:transmission-tower'
+
+    - name: "Internal CT L1 Power"
+      class: "power"
+      state_class: "measurement"
+      uom: "W"
+      scale: 1
+      rule: 2
+      registers: [0x00A7]
+      icon: 'mdi:transmission-tower'
+
+    - name: "Internal CT L2 Power"
+      class: "power"
+      state_class: "measurement"
+      uom: "W"
+      scale: 1
+      rule: 2
+      registers: [0x00A8]
+      icon: 'mdi:transmission-tower'
+      validation:
+        min: 0
+        max: 0
+        invalidate_all:
+
+    - name: "External CT L1 Power"
+      class: "power"
+      state_class: "measurement"
+      uom: "W"
+      scale: 1
+      rule: 2
+      registers: [0x00AA]
+      icon: 'mdi:transmission-tower'
+
+    - name: "External CT L2 Power"
+      class: "power"
+      state_class: "measurement"
+      uom: "W"
+      scale: 1
+      rule: 2
+      registers: [0x00AB]
+      icon: 'mdi:transmission-tower'
+      validation:
+        min: 0
+        max: 0
+        invalidate_all:
+
+    - name: "Daily Energy Bought"
+      class: "energy"
+      state_class: "total_increasing"
+      uom: "kWh"
+      scale: 0.1
+      rule: 1
+      registers: [0x004C]
+      icon: 'mdi:transmission-tower-export'
+
+    - name: "Total Energy Bought"
+      class: "energy"
+      state_class: "total_increasing"
+      uom: "kWh"
+      scale: 0.1
+      rule: 1
+      registers: [0x004E,0x0050]
+      icon: 'mdi:transmission-tower-export'
+      validation:
+        min: 5
+        invalidate_all:
+      
+    - name: "Daily Energy Sold"
+      class: "energy"
+      state_class: "total_increasing"
+      uom: "kWh"
+      scale: 0.1
+      rule: 1
+      registers: [0x004D]
+      icon: 'mdi:transmission-tower-import'
+
+    - name: "Total Energy Sold"
+      class: "energy"
+      state_class: "total_increasing"
+      uom: "kWh"
+      scale: 0.1
+      rule: 3
+      registers: [0x0051,0x0052]
+      icon: 'mdi:transmission-tower-import'
+
+
+    - name: "Total Grid Production"
+      class: "energy"
+      state_class: "total_increasing"
+      uom: "kWh"
+      scale: 0.1
+      rule: 4
+      registers: [0x003F,0x0040]
+      icon: 'mdi:transmission-tower'
+      validation:
+        min: 0.1
+        invalidate_all:
+
+
+# UPLOAD
+#----------------------------------------------------------------------
+ - group: Upload 
+   items: 
+   
+    - name: "Total Load Power"
+      class: "power"
+      state_class: "measurement"
+      uom: "W"
+      scale: 1
+      rule: 1
+      registers: [0x00B2]
+      icon: 'mdi:lightning-bolt-outline'
+
+    - name: "Load L1 Power"
+      class: "power"
+      state_class: "measurement"
+      uom: "W"
+      scale: 1
+      rule: 1
+      registers: [0x00B0]
+      icon: 'mdi:power-plug'
+
+    - name: "Load L2 Power"
+      class: "power"
+      state_class: "measurement"
+      uom: "W"
+      scale: 1
+      rule: 1
+      registers: [0x00B1]
+      icon: 'mdi:power-plug'
+      validation:
+        min: 0
+        max: 0
+        invalidate_all:
+
+    - name: "Load Voltage"
+      class: "voltage"
+      state_class: "measurement"
+      uom: "V"
+      scale: 0.1
+      rule: 1
+      registers: [0x009D]
+      icon: 'mdi:lightning-bolt-outline'
+
+    - name: "Load Frequency"
+      class: ""
+      state_class: "measurement"
+      uom: "Hz"
+      scale: 0.01
+      rule: 1
+      registers: [0x00C0]
+      icon: 'mdi:lightning-bolt-outline'
+
+    - name: "Daily Load Consumption"
+      class: "energy"
+      state_class: "total_increasing"
+      uom: "kWh"
+      scale: 0.1
+      rule: 1
+      registers: [0x0054]
+      icon: 'mdi:lightning-bolt-outline'
+
+    - name: "Total Load Consumption"
+      class: "energy"
+      state_class: "total_increasing"      
+      uom: "kWh"
+      scale: 0.1
+      rule: 3
+      registers: [0x0055,0x0056]
+      icon: 'mdi:lightning-bolt-outline'
+      validation:
+        min: 0.1
+        invalidate_all:
+
+    - name: "SmartLoad Enable Status"
+      class: ""
+      state_class: ""
+      uom: ""
+      scale: 1
+      rule: 1
+      registers: [0x00C3]
+      isstr: true
+      icon: 'mdi:fuel-cell'
+# LSB value 0:Off or 1:On
+#      lookup: 
+#      -  key: 16
+#         value: "Off"
+#      -  key: 17
+#         value: "On"
+
+
+# INVERTER
+#----------------------------------------------------------------------
+ - group: Inverter 
+   items: 
+      
+    - name: "Running Status"
+      class: ""
+      state_class: ""
+      uom: ""
+      scale: 1
+      rule: 1
+      registers: [0x003B]
+      isstr: true
+      icon: 'mdi:home-lightning-bolt'
+#      lookup: 
+#      -  key: 0
+#         value: "Stand-by"
+#      -  key: 1
+#         value: "Self-checking"
+#      -  key: 2
+#         value: "Normal"
+#      -  key: 3
+#         value: "ALARM"
+#      -  key: 4
+#         value: "FAULT"
+
+    - name: "Total Power"
+      class: "power"
+      state_class: "measurement"
+      uom: "W"
+      scale: 1
+      rule: 2
+      registers: [0x00AF]
+      icon: 'mdi:home-lightning-bolt'
+
+    - name: "Current L1"
+      class: "current"
+      state_class: "measurement"
+      uom: "A"
+      scale: 0.01
+      rule: 2
+      registers: [0x00A4]
+      icon: 'mdi:home-lightning-bolt'
+
+    - name: "Current L2"
+      class: "current"
+      uom: "A"
+      scale: 0.01
+      rule: 2
+      registers: [0x00A5]
+      icon: 'mdi:home-lightning-bolt'
+
+    - name: "Inverter L1 Power"
+      class: "power"
+      state_class: "measurement"
+      uom: "W"
+      scale: 1
+      rule: 2
+      registers: [0x00AD]
+      icon: 'mdi:home-lightning-bolt'
+
+    - name: "Inverter L2 Power"
+      class: "power"
+      state_class: "measurement"
+      uom: "W"
+      scale: 1
+      rule: 2
+      registers: [0x00AE]
+      icon: 'mdi:home-lightning-bolt'
+
+    - name: "DC Temperature"
+      class: "temperature"
+      state_class: "measurement"
+      uom: "°C"
+      scale: 0.1
+      rule: 2
+      offset: 1000
+      registers: [0x005A]
+      icon: 'mdi:thermometer'
+      validation:
+        min: 0
+        invalidate_all:
+
+    - name: "AC Temperature"
+      class: "temperature"
+      state_class: "measurement"
+      uom: "°C"
+      scale: 0.1
+      rule: 2
+      offset: 1000
+      registers: [0x005B]
+      icon: 'mdi:thermometer'
+      validation:
+        min: 0
+        invalidate_all:
+
+    - name: "Inverter ID"
+      class: ""
+      state_class: ""
+      uom: ""
+      scale: 1
+      rule: 5
+      registers: [0x0003,0x0004,0x0005,0x0006,0x0007]
+      isstr: true
+      icon: 'mdi:sticker-text-outline'
+      validation:
+        min: 50022
+        max: 50022
+        invalidate_all:
+      
+    - name: "Communication Board Version No"
+      class: ""
+      state_class: ""
+      uom: ""
+      scale: 1
+      rule: 1
+      registers: [0x000E]
+      isstr: true
+      icon: 'mdi:sticker-text-outline'
+
+    - name: "Communication Board Version No2"
+      class: ""
+      state_class: ""
+      uom: ""
+      scale: 1
+      rule: 1
+      registers: [0x000A]
+      isstr: true
+      icon: 'mdi:sticker-text-outline'
+
+    - name: "Control Board Version No"
+      class: ""
+      state_class: ""
+      uom: ""
+      scale: 1
+      rule: 1
+      registers: [0x000D]
+      isstr: true
+      icon: 'mdi:sticker-text-outline'
+
+    - name: "Control Board Version No2"
+      class: ""
+      state_class: ""
+      uom: ""
+      scale: 1
+      rule: 1
+      registers: [0x000B]
+      isstr: true
+      icon: 'mdi:sticker-text-outline'
+
+    - name: "Control Board Version No3"
+      class: ""
+      state_class: ""
+      uom: ""
+      scale: 1
+      rule: 1
+      registers: [0x000C]
+      isstr: true
+      icon: 'mdi:sticker-text-outline'
+
+    - name: "Grid-connected Status"
+      class: ""
+      state_class: ""
+      uom: ""
+      scale: 1
+      rule: 1
+      registers: [0x00C2]
+      isstr: true
+#      lookup: 
+#      -  key: 0
+#         value: "Off-Grid"
+#      -  key: 1
+#         value: "On-Grid"
+      icon: 'mdi:transmission-tower'
+
+    - name: "Generator input"
+      class: ""
+      uom: ""
+      state_class: ""
+      scale: 1
+      rule: 1
+      registers: [0x00EB]
+      isstr: true
+#      lookup: 
+#      -  key: 0
+#         value: "Generator"
+#      -  key: 1
+#         value: "Smart"
+#      -  key: 2
+#         value: "Inverter"
+      icon: 'mdi:fuel-cell'
+
+    - name: "Gen Power"
+      class: "power"
+      state_class: "measurement"
+      uom: "W"
+      scale: 1
+      rule: 1
+      registers: [0x00A6]
+      icon: 'mdi:fuel-cell'
+
+    - name: "Work Mode"
+      class: ""
+      state_class: ""
+      uom: ""
+      scale: 1
+      rule: 3
+      registers: [0x00F4,0x00F7]
+      isstr: true
+      icon: 'mdi:home-lightning-bolt'
+#      lookup: 
+#      -  key: 0
+#         value: "Selling First"
+#      -  key: 1
+#         value: "0-Export to Load"
+#      -  key: 2
+#         value: "0-Export to CT"
+#      -  key: 65537
+#         value: "0-Export to Load & Sell"
+#      -  key: 65538
+#         value: "0-Export to CT & Sell"
+
+    - name: "Energy selling"
+      class: ""
+      state_class: ""
+      uom: ""
+      scale: 1
+      rule: 3
+      registers: [0x00F7]
+      isstr: true
+      icon: 'mdi:transmission-tower-export'
+#      lookup: 
+#      -  key: 0
+#         value: "off"
+#      -  key: 1
+#         value: "on"
+
+    - name: "Time of use"
+      class: ""
+      state_class: ""
+      uom: ""
+      scale: 1
+      rule: 1
+      registers: [0x00F8]
+      isstr: true
+      icon: 'mdi:calendar-clock'
+#      lookup: 
+#      -  key: 254
+#         value: "Disable"
+#      -  key: 255
+#         value: "Enable"
+      validation:
+        min: 254
+        max: 255
+        invalidate_all:
+
+    - name: "Mode point 1"
+      scale: 1
+      rule: 9
+      registers: [0x00FA]
+      isstr: true
+
+    - name: "Mode point 2"
+      scale: 1
+      rule: 9
+      registers: [0x00FB]
+      isstr: true
+
+    - name: "Mode point 3"
+      scale: 1
+      rule: 9
+      registers: [0x00FC]
+      isstr: true
+
+    - name: "Mode point 4"
+      scale: 1
+      rule: 9
+      registers: [0x00FD]
+      isstr: true
+
+    - name: "Mode point 5"
+      scale: 1
+      rule: 9
+      registers: [0x00FE]
+      isstr: true
+
+    - name: "Mode point 6"
+      scale: 1
+      rule: 9
+      registers: [0x00FF]
+      isstr: true
+
+    - name: "Mode SOC point 1"
+      scale: 1
+      rule: 1
+      registers: [0x010C]
+      isstr: true
+
+    - name: "Mode SOC point 2"
+      scale: 1
+      rule: 1
+      registers: [0x010D]
+      isstr: true
+
+    - name: "Mode SOC point 3"
+      scale: 1
+      rule: 1
+      registers: [0x010E]
+      isstr: true
+
+    - name: "Mode SOC point 4"
+      scale: 1
+      rule: 1
+      registers: [0x010F]
+      isstr: true
+
+    - name: "Mode SOC point 5"
+      scale: 1
+      rule: 1
+      registers: [0x0110]
+      isstr: true
+
+    - name: "Mode SOC point 6"
+      scale: 1
+      rule: 1
+      registers: [0x0111]
+      isstr: true
+
+    - name: "Mode Grid point 1"
+      scale: 1
+      rule: 1
+      registers: [0x0112]
+      isstr: true
+
+    - name: "Mode Grid point 2"
+      scale: 1
+      rule: 1
+      registers: [0x0113]
+      isstr: true
+
+    - name: "Mode Grid point 3"
+      scale: 1
+      rule: 1
+      registers: [0x0114]
+      isstr: true
+
+    - name: "Mode Grid point 4"
+      scale: 1
+      rule: 1
+      registers: [0x0115]
+      isstr: true
+
+    - name: "Mode Grid point 5"
+      scale: 1
+      rule: 1
+      registers: [0x0116]
+      isstr: true
+
+    - name: "Mode Grid point 6"
+      scale: 1
+      rule: 1
+      registers: [0x0117]
+      isstr: true
+
+    - name: "System DateTime"
+      scale: 1
+      rule: 8
+      registers: [0x0016,0x0017,0x0018]
+      isstr: true
+      icon: mdi:clock-outline
+
+# ALERT
+#----------------------------------------------------------------------
+ - group: Alert
+   items: 
+   
+    - name: "Warning"
+      class: ""
+      state_class: ""
+      uom: ""
+      scale: 1
+      rule: 6
+      registers: [0x0065,0x0066]
+      icon: 'mdi:alert-box'
+
+    - name: "Fault"
+      class: ""
+      state_class: ""
+      uom: ""
+      scale: 1
+      rule: 6
+      registers: [0x0067,0x0068,0x0069,0x006A]
+      icon: 'mdi:alert'
+
+    - name: "Battery Alert"
+      class: ""
+      state_class: ""
+      uom: ""
+      scale: 1
+      rule: 6
+      registers: [0x0142,0x0143]
+      icon: 'mdi:battery-alert'
