@@ -32,6 +32,8 @@ Solarman LSE uses the same sensors suffix as Home Assistant Solarman, and works 
 
 You can create your own Card with commands for controlling your inverter (*be careful when writing settings because this can damage your inverter*).
 
+The command is sent to the invert BUT the corresponding entities will be updated at the next read (every +/- 1 minute!!!). Don't repeat the command before at least 1 minute.
+
 *Here is an example for my Deye:*
 - Time of use on/off (*aka Scheduling*)
 - Priority Load or Battery
