@@ -1,8 +1,8 @@
 ################################################################################
 #   Solarman_LSE
 #
-#   This component can retrieve data from the solarman dongle using version 5
-#   of the protocol.
+#   This component can retrieve data from the solarman dongle using Raw
+#   Modbus protocol.
 #
 ###############################################################################
 
