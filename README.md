@@ -17,7 +17,7 @@ The scope is not to maintain a Nth Add-on version but only to share my solution.
 This code was developed on a **Deye Sun 5K SG03LP1** but could run with other inverters such as SunSynk ones.
 > [!CAUTION]
 > 
-> DISCLAIMER: Use at your own and sole risks! Especially when writing any inverter's registers.
+> **DISCLAIMER**: Use at **your own and sole risks!** Especially when writing any inverter's registers.
 
 ## Installation
 Please refer to the [**manual installation**](/custom_components/solarman_lse/README.md) instructions.
@@ -34,12 +34,12 @@ You can create your own Card with commands for controlling your inverter (*be ca
 Each command is sent to the invert BUT the corresponding entities will be updated only at the next read (every +/- 1 minute!!!). Don't repeat the command before at least 1 minute.
 
 *Here is a Card example for my Deye (create your):*
-- Time of use on/off (*aka Scheduling*)
-- Priority Load or Battery
-- Battery Grid Charge enabling (*should be enabled to allow grid charge by time slot*)
-- Battery Grid Charge per time slots
-- Battery SOC minimum per time slots
-- or write automation scripts
+- Time of use on/off *aka Scheduling* (*switch.LSE_time_of_use*)
+- Priority Load or Battery  (*switch.LSE_priority_mode*)
+- Battery Grid Charge enabling (*should be enabled to allow grid charge by time slot*) (*switch.LSE__battery_grid_charge*)
+- Battery Grid Charge per time slots  (*switch.LSE_mode_grid_point_1 to 6*)
+- Battery SOC minimum per time slots  (*number.LSE_mode_soc_point_1 to 6*)
+- or write automation scripts  
 - etc.
 
 ![image](/docs/images/schedule.jpg)
@@ -48,7 +48,7 @@ Each command is sent to the invert BUT the corresponding entities will be update
 ## DEYE Sun 5K
 For the Deye Sun 5K inverter owners, you have to:
 - Install the Solarman LSE Add-on
-- Copy the *deye.yaml* file under */config/packages*
+- Copy the *deye.yaml* file under */config/packages*. This file exposes several sensors that you will or not need. Remove the ones unused and create yours from this basis if you need.
 - Using Hacks, install the *Sunsynk-Power-Flow-Card* add-on.
 - Create a Card for the *Sunsynk-Power-Flow-Card* with the sensors
 - Create buttons to control the inverter.
