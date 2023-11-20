@@ -1,0 +1,13 @@
+{
+  "domain": "solarman_lse",
+  "name": "Solarman LSE",
+  "codeowners": ["@adnovea"],
+  "config_flow": true,
+  "dependencies": [],
+  "documentation": "https://github.com/adnovea/HA_solarman_LSE/blob/main/README.md",
+  "iot_class": "local_polling",
+  "issue_tracker": "https://github.com/adnovea/HA_solarman_LSE/issues",
+  "requirements": ["pyyaml"],
+  "loggers": ["solarman_lse"],
+  "version": "99.0.0"
+}
