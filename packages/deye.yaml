@@ -1,1 +1,576 @@
 
+#----------------------------------------------------------------------
+# Definition for DEYE inverter with Solarman LSE module
+# AdNovea® - nov 2023
+#
+# IMPORTANT: 
+# - Your are responsible for the register address you are writing to.
+# - Register writes will be reflected in HA dashboard with delayt during next solarman update
+# - Register writing mau occurs during a registers query and conflict and leads to Read/Write failure
+# 
+#----------------------------------------------------------------------
+
+template:
+
+
+#**********************************************************************
+# BINARY SENSORS definitions
+#**********************************************************************
+
+  - binary_sensor:
+
+      # Deye solar priority mode binary sensor
+      #----------------------------------------------------------------------
+      - name: 'deye_priority_mode_binary'
+        unique_id: deye_priority_mode_binary
+        state: "{{ 'on' if is_state('sensor.deye_priority_mode', '1') else 'off' }}"
+
+
+#**********************************************************************
+# SENSORS definitions
+#**********************************************************************
+
+  - sensor:
+
+      # Inverter Comm-version in Hexa
+      #----------------------------------------------------------------------
+      - name: 'deye_comm_version_hexa'
+        unique_id: comm_version_hex
+        state: >
+            {% set V1 = states('sensor.deye_communication_board_version_no')  | int(default=0) %}
+            {% set V2 = states('sensor.deye_communication_board_version_no2') | int(default=0) %}
+            {{ '%04X-%04X' | format( V2, V1 ) }}
+        icon: mdi:sticker-text-outline
+
+
+      # Inverter Comm-version in Hexa
+      #----------------------------------------------------------------------
+      - name: 'deye_ctrl_version_hexa'
+        unique_id: ctrl_version_hex
+        state: >
+            {% set V1 = states('sensor.deye_control_board_version_no')  | int(default=0) %}
+            {% set V2 = states('sensor.deye_control_board_version_no2') | int(default=0) %}
+            {% set V3 = states('sensor.deye_control_board_version_no3') | int(default=0) %}
+            {{ '%0X-%04X-%04X' | format( V3, V1, V2 ) }}        
+        icon: mdi:sticker-text-outline
+
+
+      # Sum of the power of 2 solar panels fields
+      #----------------------------------------------------------------------
+      - name: 'deye_pv1_pv2_power'
+        unique_id: all_panels
+        state: >
+          {% set PV1 = states('sensor.deye_pv1_power') | int(default=0) %}
+          {% set PV2 = states('sensor.deye_pv2_power') | int(default=0) %}
+          {{ PV1 + PV2 }}
+        icon: mdi:solar-power-variant
+        state_class: 'measurement'
+        unit_of_measurement: 'W'
+
+
+      # Compute Home L1 power for non-essential loads (large power consumers)
+      #----------------------------------------------------------------------
+      - name: "deye_load_l1_home_power"
+        unique_id: load_l1_home_power
+        state: >
+          {% set P1 = states('sensor.deye_external_ct_l1_power') | int(default=0) %}
+          {% set P2 = states('sensor.deye_internal_ct_l1_power') | int(default=0) %}
+          {{ P1 - P2 }}
+        icon: mdi:washing-machine
+        unit_of_measurement: "W"
+
+
+      # Compute essential Loads power
+      #----------------------------------------------------------------------
+      - name: "deye_load_l1_backup_power"
+        unique_id: load_l1_backup_power
+        state: >
+          {% set P1 = states('sensor.deye_load_l1_power') | int(default=0) %}
+          {% set P2 = states('sensor.deye_external_ct_l1_power') | int(default=0) %}
+          {% set P3 = states('sensor.deye_internal_ct_l1_power') | int(default=0) %}
+          {% set P4 = states('sensor.deye_gen_power') | int(default=0) %}
+          {% if ( (P1 - P2 + P3 - P4) < 0 ) %}
+            {% set res = 0 %}
+          {% else %}
+            {% set res = (P1 - P2 + P3 - P4) %}
+          {% endif %}
+          {{ res }}
+        icon: mdi:home-battery-outline
+        unit_of_measurement: "W"
+
+
+      # Estimate inverter losses as positive value
+      #----------------------------------------------------------------------
+      - name: "deye_inverter_losses"
+        unique_id: inverter_losses
+        state: >
+          {% set PV1 = states('sensor.deye_pv1_power') | int(default=0) %}
+          {% set PV2 = states('sensor.deye_pv2_power') | int(default=0) %}
+          {% set PW1 = states('sensor.deye_battery_power') | int(default=0) %}
+          {% set PW2 = states('sensor.deye_internal_ct_l1_power') | int(default=0) %}
+          {% set PW3 = states('sensor.deye_inverter_l1_power') | int(default=0) %}
+          {% set PW4 = states('sensor.deye_load_l1_backup_power') | int(default=0) %}
+          {% set PW5 = states('sensor.deye_gen_power') | int(default=0) %}
+          {% set res = PV1 + PV2 + PW1 + PW2 - PW4 - PW5 %}
+          {{ res if res > 0  else 0 }}
+        icon: mdi:trash-can-outline
+        unit_of_measurement: "W"
+
+
+      # Compute Total loads
+      #----------------------------------------------------------------------
+      - name: "deye_computed_loads"
+        unique_id: computed_loads
+        state: >
+          {% set PW1 = states('sensor.deye_load_l1_home_power') | int(default=0) %}
+          {% set PW2 = states('sensor.deye_load_l1_backup_power') | int(default=0) %}
+          {% set PW3 = states('sensor.deye_gen_power') | int(default=0) %}
+          {% set res = PW1 + PW2 + PW3 %}
+          {{ res }}
+        icon: mdi:radiator
+        unit_of_measurement: "W"
+
+
+      # Other loads consumption for Essentials and Non-Essentials
+      # NOTE: lines below must be commented if not used
+      #----------------------------------------------------------------------
+      - name: "deye_essential_others"
+        unique_id: essential_others
+        state: "{{ states('sensor.deye_load_l1_home_power') | int(0) - states('sensor.aquarea_energy_consumption') | int(0) }}"
+        unit_of_measurement: "W"
+
+      - name: "deye_nonessential_others"
+        unique_id: nonessential_others
+        state: "{{ states('sensor.deye_load_l1_backup_power') | int(0) - states('sensor.ecs_backup_power') | int(0) }}"
+        unit_of_measurement: "W"
+
+
+      # Compute Total loads in % of the Solar panel production (here: 4900 Wp)
+      #----------------------------------------------------------------------
+      - name: "deye_loads_percent"
+        unique_id: loads_percent
+        state: >
+          {% set MAX = 4900 %}
+          {% if states('sensor.deye_battery_power') | int(default=0) >= 0 %}
+             {% set res = ( states('sensor.deye_computed_loads') | int(default=0) * 100 / MAX ) | round(1) %}
+          {% else %}
+            {% set res = ( ( states('sensor.deye_computed_loads') | int(default=0) + states('sensor.deye_battery_power') | int(default=0) ) * 100 / MAX ) | round(1)%}
+          {% endif %}
+          {{ res }}
+        icon: mdi:washing-machine
+        unit_of_measurement: "%"
+
+
+      # Estimate total inverter losses
+      #----------------------------------------------------------------------
+      - name: "deye_daily_inverter_losses"
+        unique_id: daily_inverter_losses
+        state: >
+          {% set PROD = ( states('sensor.deye_daily_production') | float(default=0) ) + ( states('sensor.deye_daily_battery_discharge') | float(default=0) ) + ( states('sensor.deye_daily_energy_bought') | float(default=0) ) %}
+          {% set CONS = ( states('sensor.deye_daily_load_consumption') | float(default=0) ) + ( states('sensor.deye_daily_battery_charge') | float(default=0) ) %}
+          {{ ( PROD - CONS ) | float | round(1) }}
+        icon: mdi:trash-can-outline
+        unit_of_measurement: "kW"
+
+
+      # Estimate system efficiency
+      #----------------------------------------------------------------------
+      - name: "deye_efficiency"
+        unique_id: efficiency
+        state: >
+          {% set P1 = states('sensor.deye_pv1_power') | int(default=0) %}
+          {% set P2 = states('sensor.deye_pv2_power') | int(default=0) %}
+          {% set P3 = states('sensor.deye_external_ct_l1_power') | int(default=0) %}
+          {% set B1 = states('sensor.deye_battery_power') | int(default=0) %}
+          {% set CONS = states('sensor.deye_computed_loads') | int(default=0) %}
+          {% if B1 > 0 %}
+            {% set PROD = P1 + P2 + P3 + B1 %}
+          {% else %}
+            {% set PROD = P1 + P2 + P3 %}
+            {% set CONS = CONS - B1 %}
+          {% endif %}
+          {% if PROD == 0 %}
+             {{ 0 }}
+          {% else %}
+            {% set res = ( ( CONS / PROD ) * 100 ) | round(1) %}
+            {{ res if res <= 100 else 100 }}
+          {% endif %}
+        icon: mdi:percent-circle
+        unit_of_measurement: "%"
+
+
+      # Returns batteries capacities in Watts
+      #----------------------------------------------------------------------
+      - name: "deye_battery_capacity_watts"
+        unique_id: battery_capacity_watts
+        state: "{{ states('sensor.deye_battery_capacity') | int(0) * 47 }}"
+        icon: mdi:battery
+
+
+      # Compute battery full/empty end time
+      #   battery_capacity      Actual battery capacity
+      #   battery_shutdown      Actual battery shutdown SOC
+      #   battery_soc           Actual battery SOC
+      #   battery_power         Actual battery power
+      #   battery_current       Actual battery current
+      #   if battery_current in [-2,2] Amps --> FLOATING
+      #----------------------------------------------------------------------
+      - name: "deye_battery_endtime"
+        unique_id: battery_endtime
+        state: >
+            {% set battery_capacity = states('sensor.deye_battery_capacity') | int(default=0) * 48 %} 
+            {% set battery_shutdown = states('sensor.deye_battery_shutdown') | int(default=0) %}
+            {% set battery_soc      = states('sensor.deye_battery_soc')      | int(default=0) %}
+            {% set battery_power    = states('sensor.deye_battery_power')    | int(default=0) %}
+            {% set battery_current  = states('sensor.deye_battery_current')  | int(default=0) %}
+            {% if battery_current < 2 and battery_current > -2 %}
+                {{ 'Floating' if ( states('sensor.deye_battery_soc') | int(default=0) ) > 0 else 'No battery' }}
+            {% elif battery_power | int  > 0 %}
+                {% set totalSeconds = ( ( battery_soc - battery_shutdown ) / 100 * battery_capacity / battery_power * 60* 60 ) | int(default=0) %}
+                {% set t = now() + timedelta(seconds=totalSeconds) %}
+                {{ 'à {:02d}% @ {:02d}:{:02d}'.format(battery_shutdown, t.hour, t.minute ) }}
+            {% elif battery_power | int  < 0 %}
+                {% set totalSeconds = ( ( battery_soc - 100 ) / 100 * battery_capacity / battery_power * 60* 60 ) | int(default=0) %}
+                {% set t = now() + timedelta(seconds=totalSeconds) %}
+                {{ 'à 100% @ {:02d}:{:02d}'.format( t.hour, t.minute ) }}
+            {% endif %}
+        icon: mdi:clock-end
+
+
+      # Alternative SOC display when 'No battery' is selected to avoid unknown state
+      #----------------------------------------------------------------------
+      - name: "deye_battery_soc_alt"
+        unique_id: battery_soc_alt
+        state: >
+            {{ 0 if ( states('sensor.deye_battery_soc') is defined ) else states('sensor.deye_battery_soc') | int(default=0) }}
+        icon: mdi:battery-90
+        unit_of_measurement: "%"
+
+
+      # Returns Time-of-User active time slot
+      #----------------------------------------------------------------------
+      - name: "deye_time_slot"
+        unique_id: time_slot
+        state: >
+          {% set tnow = now().strftime('%H:%M') %}
+          {% if   tnow <  states('sensor.deye_mode_point_1') %} 6
+          {% elif tnow <  states('sensor.deye_mode_point_2') %} 1
+          {% elif tnow <  states('sensor.deye_mode_point_3') %} 2
+          {% elif tnow <  states('sensor.deye_mode_point_4') %} 3
+          {% elif tnow <  states('sensor.deye_mode_point_5') %} 4
+          {% elif tnow <  states('sensor.deye_mode_point_6') %} 5
+          {% else %} 6
+          {% endif %}
+        icon: mdi:timer
+
+
+#**********************************************************************
+# NUMBER definitions
+#**********************************************************************
+
+  - number:
+
+
+      # Set Work battery SOC for point 1 (reg 268)
+      # Minimum value is limimted to 10% to avoid critical lithium battery discharge
+      #----------------------------------------------------------------------
+      - name: deye_mode_soc_point_1
+        unique_id: 'number_mode_soc_1'
+        state: "{{ states('sensor.deye_mode_soc_point_1') | int(0) }}"
+        set_value:
+        - service: solarman_lse.write_holding_register
+          target: {}
+          data:
+            register: 268
+            value: "{{ value | int(10) }}"
+        min: 10
+        max: 100
+        step: 5
+
+      # Set Work battery SOC for point 2 (reg 269)
+      #----------------------------------------------------------------------
+      - name: deye_mode_soc_point_2
+        unique_id: 'number_mode_soc_2'
+        state: "{{ states('sensor.deye_mode_soc_point_2') | int(0) }}"
+        set_value:
+        - service: solarman_lse.write_holding_register
+          target: {}
+          data:
+            register: 269
+            value: "{{ value | int(10) }}"
+        min: 10
+        max: 100
+        step: 5
+
+      # Set Work battery SOC for point 3 (reg 270)
+      #----------------------------------------------------------------------
+      - name: deye_mode_soc_point_3
+        unique_id: 'number_mode_soc_3'
+        state: "{{ states('sensor.deye_mode_soc_point_3') | int(0) }}"
+        set_value:
+        - service: solarman_lse.write_holding_register
+          target: {}
+          data:
+            register: 270
+            value: "{{ value | int(10) }}"
+        min: 10
+        max: 100
+        step: 5
+
+      # Set Work battery SOC for point 4 (reg 271)
+      #----------------------------------------------------------------------
+      - name: deye_mode_soc_point_4
+        unique_id: 'number_mode_soc_4'
+        state: "{{ states('sensor.deye_mode_soc_point_4') | int(0) }}"
+        set_value:
+        - service: solarman_lse.write_holding_register
+          target: {}
+          data:
+            register: 271
+            value: "{{ value | int(10) }}"
+        min: 10
+        max: 100
+        step: 5
+
+      # Set Work battery SOC for point 5 (reg 272)
+      #----------------------------------------------------------------------
+      - name: deye_mode_soc_point_5
+        unique_id: 'number_mode_soc_5'
+        state: "{{ states('sensor.deye_mode_soc_point_5') | int(0) }}"
+        set_value:
+        - service: solarman_lse.write_holding_register
+          target: {}
+          data:
+            register: 272
+            value: "{{ value | int(10) }}"
+        min: 10
+        max: 100
+        step: 5
+
+      # Set Work battery SOC for point 6 (reg 273)
+      #----------------------------------------------------------------------
+      - name: deye_mode_soc_point_6
+        unique_id: 'number_mode_soc_6'
+        state: "{{ states('sensor.deye_mode_soc_point_6') | int(0) }}"
+        set_value:
+        - service: solarman_lse.write_holding_register
+          target: {}
+          data:
+            register: 273
+            value: "{{ value | int(10) }}"
+        min: 10
+        max: 100
+        step: 5
+
+
+#**********************************************************************
+# SWITCH definitions
+#**********************************************************************
+
+switch:
+
+- platform: template
+  switches:
+
+    # Switch "Time of Use" to convert Sensor value to Switch state (reg 248)
+    #----------------------------------------------------------------------
+    deye_time_of_use:
+      friendly_name: Deye Time of Use Switch
+      unique_id: time_of_use_switch
+      value_template: "{{ states('sensor.deye_time_of_use') == '255' }}"
+      turn_on:
+        service: solarman_lse.write_holding_register
+        target: {}
+        data:
+          register: 248
+          value: 255
+      turn_off:
+        service: solarman_lse.write_holding_register
+        target: {}
+        data:
+          register: 248
+          value: 254
+
+
+    # Switch "Priority Mode" to convert Sensor value to Switch state (reg 243)
+    #----------------------------------------------------------------------
+    deye_priority_mode:
+      friendly_name: Deye Priority Mode Switch
+      unique_id: priority_mode_switch
+      value_template: "{{ states('sensor.deye_priority_mode') == '1' }}"
+      turn_on:
+        service: solarman_lse.write_holding_register
+        target: {}
+        data:
+          register: 243
+          value: 1
+      turn_off:
+        service: solarman_lse.write_holding_register
+        target: {}
+        data:
+          register: 243
+          value: 0
+
+
+    # Switch "Battery Grid Charge" to convert Sensor value to Switch state (reg 232)
+    #----------------------------------------------------------------------
+    deye_battery_grid_charge:
+      friendly_name: Deye Battery Grid Charge Switch
+      unique_id: work_mode_switch
+      value_template: "{{ states('sensor.deye_battery_grid_charge') == '1' }}"
+      turn_on:
+        service: solarman_lse.write_holding_register
+        target: {}
+        data:
+          register: 232
+          value: 1
+      turn_off:
+        service: solarman_lse.write_holding_register
+        target: {}
+        data:
+          register: 232
+          value: 0
+
+
+    # Switch to convert "Work Mode" Sensor value to Solar Sell switch state (reg 247)
+    #----------------------------------------------------------------------
+    deye_solar_sell:
+      friendly_name: Deye Solar Sell Switch
+      unique_id: solar_sell_switch
+      value_template: "{{ states('sensor.deye_energy_selling') == '1' }}"
+      turn_on:
+        service: solarman_lse.write_holding_register
+        target: {}
+        data:
+          register: 247
+          value: 1
+      turn_off:
+        service: solarman_lse.write_holding_register
+        target: {}
+        data:
+          register: 247
+          value: 0
+
+
+    # Switch "Charge Time 1" to convert Sensor value to Switch state (reg 274)
+    #----------------------------------------------------------------------
+    deye_mode_grid_point_1:
+      friendly_name: Deye Mode Grid Point 1 Switch
+      unique_id: mode_grid_point_1_switch
+      value_template: "{{ states('sensor.deye_mode_grid_point_1') == '5' }}"
+      turn_on:
+        service: solarman_lse.write_holding_register
+        target: {}
+        data:
+          register: 274
+          value: 5
+      turn_off:
+        service: solarman_lse.write_holding_register
+        target: {}
+        data:
+          register: 274
+          value: 4
+
+
+    # Switch "Charge Time 2" to convert Sensor value to Switch state (reg 275)
+    #----------------------------------------------------------------------
+    deye_mode_grid_point_2:
+      friendly_name: Deye Mode Grid Point 2 Switch
+      unique_id: mode_grid_point_2_switch
+      value_template: "{{ states('sensor.deye_mode_grid_point_2') == '5' }}"
+      turn_on:
+        service: solarman_lse.write_holding_register
+        target: {}
+        data:
+          register: 275
+          value: 5
+      turn_off:
+        service: solarman_lse.write_holding_register
+        target: {}
+        data:
+          register: 275
+          value: 4
+
+
+    # Switch "Charge Time 3" to convert Sensor value to Switch state (reg 276)
+    #----------------------------------------------------------------------
+    deye_mode_grid_point_3:
+      friendly_name: Deye Mode Grid Point 3 Switch
+      unique_id: mode_grid_point_3_switch
+      value_template: "{{ states('sensor.deye_mode_grid_point_3') == '5' }}"
+      turn_on:
+        service: solarman_lse.write_holding_register
+        target: {}
+        data:
+          register: 276
+          value: 5
+      turn_off:
+        service: solarman_lse.write_holding_register
+        target: {}
+        data:
+          register: 276
+          value: 4
+
+
+    # Switch "Charge Time 4" to convert Sensor value to Switch state (reg 277)
+    #----------------------------------------------------------------------
+    deye_mode_grid_point_4:
+      friendly_name: Deye Mode Grid Point 4 Switch
+      unique_id: mode_grid_point_4_switch
+      value_template: "{{ states('sensor.deye_mode_grid_point_4') == '5' }}"
+      turn_on:
+        service: solarman_lse.write_holding_register
+        target: {}
+        data:
+          register: 277
+          value: 5
+      turn_off:
+        service: solarman_lse.write_holding_register
+        target: {}
+        data:
+          register: 277
+          value: 4
+
+
+    # Switch "Charge Time 5" to convert Sensor value to Switch state (reg 278)
+    #----------------------------------------------------------------------
+    deye_mode_grid_point_5:
+      friendly_name: Deye Mode Grid Point 5 Switch
+      unique_id: mode_grid_point_5_switch
+      value_template: "{{ states('sensor.deye_mode_grid_point_5') == '5' }}"
+      turn_on:
+        service: solarman_lse.write_holding_register
+        target: {}
+        data:
+          register: 278
+          value: 5
+      turn_off:
+        service: solarman_lse.write_holding_register
+        target: {}
+        data:
+          register: 278
+          value: 4
+
+
+    # Switch "Charge Time 6" to convert Sensor value to Switch state (reg 279)
+    #----------------------------------------------------------------------
+    deye_mode_grid_point_6:
+      friendly_name: Deye Mode Grid Point 6 Switch
+      unique_id: mode_grid_point_6_switch
+      value_template: "{{ states('sensor.deye_mode_grid_point_6') == '5' }}"
+      turn_on:
+        service: solarman_lse.write_holding_register
+        target: {}
+        data:
+          register: 279
+          value: 5
+      turn_off:
+        service: solarman_lse.write_holding_register
+        target: {}
+        data:
+          register: 279
+          value: 4
+
+
+ 
+ 
