@@ -1,5 +1,7 @@
 # Solarman integration for Ethernet LSE Stick Logger
-Home Assistant component for interacting with Solarman LSE (_Ethernet type_) Stick loggers. 
+Home Assistant component for interacting with Solarman LSE (_Ethernet type_) Stick loggers.
+
+*Version 99.0.0*
 
 > [!NOTE]
 > BEFORE considering using this add-on :
